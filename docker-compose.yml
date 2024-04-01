@@ -2,14 +2,19 @@ version: '3.8'
 
 services:
   web:
-    build: ./app
-    command: python manage.py runserver 0.0.0.0:8000
+    build:
+      context: ./app
+      dockerfile: Dockerfile.prod
+    command: gunicorn hello_django.wsgi:application --bind 0.0.0.0:8000
+    # staticfiles directory shared between web and nginx services
     volumes:
-      - ./app:/usr/src/app/
-    ports:
-      - 8000:8000
+      - static_volume:/home/app/web/staticfiles
+    # Use 'expose' rather than 'ports' so port is only exposed to other
+    # docker services
+    expose:
+      - 8000
     env_file:
-      - ./.env.dev
+      - ./.env.prod
     depends_on:
       - pg
   pg:
@@ -30,7 +35,17 @@ services:
       - 5433:5433
     depends_on:
       - pg
+  nginx:
+    build: ./nginx
+    # staticfiles directory shared between web and nginx services
+    volumes:
+      - static_volume:/home/app/web/staticfiles
+    ports:
+      - 80:80
+    depends_on:
+      - web
 
 volumes:
   pg_data:
   pgadmin_data:
+  static_volume:
